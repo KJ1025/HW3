@@ -2,51 +2,79 @@ import re
 import sys
 import urllib2
 import urlparse
-
+ 
+from bs4 import BeautifulSoup
+ 
+ 
+ 
 class Crawler(object):
-
+ 
     def __init__(self, urls):
-        self.urls = urls.split(',')
-	i=0
-	for url in self.urls:
-   	    if 'http' not in self.urls[i]:
-		self.urls[i]="http://"+self.urls[i]
-		i=i+1
-	    else:
-		i=i+1
-	
-
-    
+        self.urls = [urls]
+     
+     
+     
     def crawl(self):
-	emailcount=0
-       
+    child =[]
+    chilmail = set()
+    mailbox = set()
+    haslink=True
+    emailcount=0
+ 
+     
         for url in self.urls:
-            data = self.request(url)
-	    print "***********************"+"\n"+url+" email:"
-            for email in self.process(data):
-		emailcount=emailcount+1
-	        print email,emailcount
-
+        data = self.request(url)
+        soup = BeautifulSoup(data,"html.parser")
+        mailto = set(re.findall(r"[a-z0-9\.\-+_]+@[a-z0-9\.\-+_]+\.[a-z]+",data,re.I))
+        mailbox = mailto | mailbox
+         
+         
+        for link in soup.find_all("a"):
+        try:
+                    links = link.attrs["href"]
+        except:
+            links =""                           
+        if links.startswith('..'):
+            links =url+links[2:]
+        elif links.startswith('.'):
+            links =url+links[1:]
+        elif links.startswith('/'):
+            links = url+links
+        elif 'http' not in links:
+            links="http://"+url+"/"+links
+        else:
+            links=links
+             
+        if links not in self.urls and len(self.urls)<=100:
+                self.urls.append(links)
+    print len(mailbox)
+    for data in mailbox:
+        print data
+    ''' 
+    for url in child:
+        data = self.request(url)
+        chilmails = set(re.findall(r"[a-z0-9\.\-+_]+@[a-z0-9\.\-+_]+\.[a-z]+",data,re.I))
+            chilmail = chilmail | chilmails
+        chilmail = chilmail | mailbox
+    print "The numbers of emails has",len(chilmail)
+    for data in chilmail:
+        print data
+    '''
     @staticmethod
     def request(url):
+    if 'http' not in url:
+        url="http://"+url   
         try:
             response = urllib2.urlopen(url)
-	    return response.read()
-	except:
-	    print "\nWrong urls with\n"+url
-	    sys.exit()
-    @staticmethod
-    def process(data):
-        
-        for email in re.findall(r'(\w+@\w+\.com)', data):
-            yield email
-
-
+    except:
+        return ""
+    return response.read()
+   
 def main():
     urls=sys.argv[1]
     crawler = Crawler(urls)
     crawler.crawl()
-#ex:http://www.ee.ccu.edu.tw/members/teacher.php
-    
+ 
+     
 if __name__ == '__main__':
   sys.exit(main())
